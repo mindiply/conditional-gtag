@@ -51,7 +51,7 @@ interface IConfigParameters {
   page_title?: string;
   page_location?: string;
   page_path?: string;
-  send_page_views?: boolean;
+  send_page_view?: boolean;
   user_id?: string;
 }
 
@@ -144,13 +144,15 @@ function gtag(
 export interface IConditionalGTagsOptions {
   checkFn?: () => boolean;
   disableGlobalScopeCheck?: boolean;
+  disableInitialPageView?: boolean;
   locationRegEx?: RegExp;
   propertyId?: string;
 }
 
 export function initGTag({
   checkFn,
-  disableGlobalScopeCheck,
+  disableGlobalScopeCheck = false,
+  disableInitialPageView = false,
   locationRegEx,
   propertyId: propId
 }: IConditionalGTagsOptions = {}): void {
@@ -190,7 +192,16 @@ export function initGTag({
     .then(() => {})
     .catch(() => {});
   gtag(GTagCommand.JS, new Date());
-  gtag(GTagCommand.CONFIG, propertyId);
+  if (disableInitialPageView) {
+    gtag(
+      GTagCommand.CONFIG,
+      propertyId,
+      // eslint-disable-next-line @typescript-eslint/camelcase
+      {send_page_view: false}
+    );
+  } else {
+    gtag(GTagCommand.CONFIG, propertyId);
+  }
 }
 
 export function recordScreenRender(appName: string, screenName: string): void {
