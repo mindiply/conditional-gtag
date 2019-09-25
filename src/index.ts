@@ -119,7 +119,8 @@ declare global {
   }
 }
 
-const gtag: IGTagFn = (
+/* eslint-disable @typescript-eslint/no-unused-vars,no-unused-vars */
+function gtag(
   cmd: GTagCommand,
   qualifier: string | Date,
   prms?:
@@ -129,17 +130,16 @@ const gtag: IGTagFn = (
     | IEventParameters
     | IConfigParameters
     | IConditionalGTagsOptions
-) => {
+): void {
+  /* eslint-enable @typescript-eslint/no-unused-vars,no-unused-vars */
   if (!(useGTags && propertyId)) {
     return;
   }
   if (typeof window !== 'undefined') {
-    if (!window.dataLayer) {
-      window.dataLayer = [];
-    }
-    window.dataLayer.push([cmd, qualifier, prms]);
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
   }
-};
+}
 
 export interface IConditionalGTagsOptions {
   checkFn?: () => boolean;
@@ -182,7 +182,7 @@ export function initGTag({
     }
     if (!useGTags) return;
   }
-
+  window.dataLayer = window.dataLayer || [];
   loadJs({
     url: `https://www.googletagmanager.com/gtag/js?id=${propertyId}`,
     async: true
