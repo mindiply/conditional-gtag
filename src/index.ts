@@ -1,5 +1,3 @@
-import loadJs from 'load-js';
-
 let useGTags = false;
 let propertyId: string | null = null;
 
@@ -149,58 +147,65 @@ export interface IConditionalGTagsOptions {
   propertyId?: string;
 }
 
-export function initGTag({
+export async function initGTag({
   checkFn,
   disableGlobalScopeCheck = false,
   disableInitialPageView = false,
   locationRegEx,
   propertyId: propId
-}: IConditionalGTagsOptions = {}): void {
-  if (typeof window === 'undefined') return;
-  if (!propId) {
-    if (window.GTAG_PROPERTY_ID) {
-      propertyId = window.GTAG_PROPERTY_ID;
-      useGTags = true;
-    } else {
-      return;
-    }
-  } else {
-    propertyId = propId;
-    if (checkFn && typeof checkFn === 'function') {
-      useGTags = checkFn();
-      if (!useGTags) return;
-    }
-    if (!disableGlobalScopeCheck) {
-      if (typeof USE_GTAGS !== 'undefined') {
-        if (!USE_GTAGS) return;
-        useGTags = useGTags || USE_GTAGS === true;
-      }
-    }
-    if (locationRegEx && locationRegEx instanceof RegExp) {
-      if (!locationRegEx.test(window.location.host)) {
+}: IConditionalGTagsOptions = {}): Promise<void> {
+  try {
+    if (typeof window === 'undefined') return;
+    if (!propId) {
+      if (window.GTAG_PROPERTY_ID) {
+        propertyId = window.GTAG_PROPERTY_ID;
+        useGTags = true;
+      } else {
         return;
       }
-      useGTags = true;
+    } else {
+      propertyId = propId;
+      if (checkFn && typeof checkFn === 'function') {
+        useGTags = checkFn();
+        if (!useGTags) return;
+      }
+      if (!disableGlobalScopeCheck) {
+        if (typeof USE_GTAGS !== 'undefined') {
+          if (!USE_GTAGS) return;
+          useGTags = useGTags || USE_GTAGS === true;
+        }
+      }
+      if (locationRegEx && locationRegEx instanceof RegExp) {
+        if (!locationRegEx.test(window.location.host)) {
+          return;
+        }
+        useGTags = true;
+      }
+      if (!useGTags) return;
     }
-    if (!useGTags) return;
-  }
-  window.dataLayer = window.dataLayer || [];
-  loadJs({
-    url: `https://www.googletagmanager.com/gtag/js?id=${propertyId}`,
-    async: true
-  })
-    .then(() => {})
-    .catch(() => {});
-  gtag(GTagCommand.JS, new Date());
-  if (disableInitialPageView) {
-    gtag(
-      GTagCommand.CONFIG,
-      propertyId,
-      // eslint-disable-next-line @typescript-eslint/camelcase
-      {send_page_view: false}
-    );
-  } else {
-    gtag(GTagCommand.CONFIG, propertyId);
+    window.dataLayer = window.dataLayer || [];
+    const loadJs = (await import('load-js')).default;
+    loadJs({
+      url: `https://www.googletagmanager.com/gtag/js?id=${propertyId}`,
+      async: true
+    })
+      .then(() => {
+      })
+      .catch(() => {
+      });
+    gtag(GTagCommand.JS, new Date());
+    if (disableInitialPageView) {
+      gtag(
+        GTagCommand.CONFIG,
+        propertyId,
+        // eslint-disable-next-line @typescript-eslint/camelcase
+        {send_page_view: false}
+      );
+    } else {
+      gtag(GTagCommand.CONFIG, propertyId);
+    }
+  } catch (err) {
+    // Silent swallow
   }
 }
 

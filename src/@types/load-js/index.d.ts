@@ -14,4 +14,6 @@ declare module 'load-js' {
 
   function loadJs(prms: ItemToLoad | ItemToLoad[]): Promise<void>;
   export default loadJs;
+  export type LoadJsFn = typeof loadJs;
+  export function create(): typeof loadJs;
 }
