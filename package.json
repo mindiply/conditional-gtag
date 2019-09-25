@@ -1,0 +1,42 @@
+{
+  "name": "conditional-gtag",
+  "version": "0.0.2",
+  "description": "Wrapper for Google tags that records views and events conditionally to initialization options, server safe",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build_watch": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "prepublish": "npm run test && npm run build",
+    "test": "npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mindiply/conditional-gtag.git"
+  },
+  "keywords": [
+    "google",
+    "tags",
+    "wrapper",
+    "typescript",
+    "conditional"
+  ],
+  "author": "Paolo F. Bongiovanni <paolo.bongiovanni@mindiply.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mindiply/conditional-gtag/issues"
+  },
+  "homepage": "https://github.com/mindiply/conditional-gtag#readme",
+  "dependencies": {
+    "load-js": "^3.0.3"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.3.1",
+    "@typescript-eslint/parser": "^2.3.1",
+    "eslint": "^6.4.0",
+    "eslint-config-prettier": "^6.3.0",
+    "eslint-plugin-prettier": "^3.1.1",
+    "prettier": "^1.18.2",
+    "typescript": "^3.6.3"
+  }
+}
