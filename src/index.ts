@@ -80,36 +80,9 @@ interface IExceptionParameters {
   fatal?: boolean;
 }
 
-interface IGTagFn {
-  (cmd: GTagCommand.JS, when: Date): void;
-  (cmd: GTagCommand.CONFIG, propertyId: string, prms?: IConfigParameters): void;
-  (
-    cmd: GTagCommand.EVENT,
-    action: 'screen_view',
-    prms: IScreenViewParameters
-  ): void;
-  (
-    cmd: GTagCommand.EVENT,
-    action: 'timing_complete',
-    prms: ITimingParameters
-  ): void;
-  (
-    cmd: GTagCommand.EVENT,
-    action: 'exception',
-    prms?: IExceptionParameters
-  ): void;
-  (cmd: GTagCommand.EVENT, action: string, prms?: IEventParameters): void;
-  (
-    cmd: GTagCommand.EVENT,
-    action: string,
-    stats: {[statName: string]: string | number}
-  ): void;
-}
-
 declare let USE_GTAGS: undefined | boolean;
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/interface-name-prefix
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dataLayer?: any[];
@@ -128,6 +101,7 @@ function gtag(
     | IEventParameters
     | IConfigParameters
     | IConditionalGTagsOptions
+    | string
 ): void {
   /* eslint-enable @typescript-eslint/no-unused-vars,no-unused-vars */
   if (!(useGTags && propertyId)) {
@@ -189,16 +163,13 @@ export async function initGTag({
       url: `https://www.googletagmanager.com/gtag/js?id=${propertyId}`,
       async: true
     })
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       .then(() => {})
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       .catch(() => {});
     gtag(GTagCommand.JS, new Date());
     if (disableInitialPageView) {
-      gtag(
-        GTagCommand.CONFIG,
-        propertyId,
-        // eslint-disable-next-line @typescript-eslint/camelcase
-        {send_page_view: false}
-      );
+      gtag(GTagCommand.CONFIG, propertyId, {send_page_view: false});
     } else {
       gtag(GTagCommand.CONFIG, propertyId);
     }
@@ -210,9 +181,7 @@ export async function initGTag({
 export function recordScreenRender(appName: string, screenName: string): void {
   try {
     gtag(GTagCommand.EVENT, 'screen_view', {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       app_name: appName,
-      // eslint-disable-next-line @typescript-eslint/camelcase
       screen_name: screenName
     });
   } catch (err) {
@@ -229,11 +198,9 @@ export function recordEvent(
   try {
     const prms: Partial<IEventParameters> = {};
     if (category) {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       prms.event_category = category;
     }
     if (label) {
-      // eslint-disable-next-line @typescript-eslint/camelcase
       prms.event_label = label;
     }
     if (value) {
@@ -246,18 +213,16 @@ export function recordEvent(
 }
 
 let oldView: string | null = null;
-export function recordNewView(view?: string): void {
+export function recordNewView(viewPath?: string): void {
   try {
     const viewToRecord =
-      view ||
+      viewPath ||
       (typeof window !== 'undefined' ? window.location.pathname : 'default');
     if (oldView !== viewToRecord) {
       oldView = viewToRecord;
-      if (view) {
-        gtag(GTagCommand.CONFIG, propertyId || 'default', {
-          // eslint-disable-next-line @typescript-eslint/camelcase
-          page_path: viewToRecord
-        });
+      if (viewPath) {
+        gtag(GTagCommand.SET, 'page_path', viewPath);
+        gtag(GTagCommand.EVENT, 'page_view');
       }
     }
   } catch (err) {
