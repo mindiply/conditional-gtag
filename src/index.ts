@@ -1,11 +1,18 @@
 let useGTags = false;
 let propertyId: string | null = null;
 
-enum GTagCommand {
+export interface TrackingAllowedFn {
+  (): boolean;
+}
+
+let isTrackingAllowedFn: null | TrackingAllowedFn = null;
+
+export enum GTagCommand {
   CONFIG = 'config',
   EVENT = 'event',
   JS = 'js',
-  SET = 'set'
+  SET = 'set',
+  CONSENT = 'consent'
 }
 
 interface IConfigParameters {
@@ -80,18 +87,25 @@ interface IExceptionParameters {
   fatal?: boolean;
 }
 
+interface ConsentParameters {
+  analytics_storage?: 'granted' | 'denied';
+  ad_storage?: 'granted' | 'denied';
+  ads_data_redaction?: boolean;
+  region?: string[];
+}
+
 declare let USE_GTAGS: undefined | boolean;
 
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dataLayer?: any[];
+    dataLayer: any[];
     GTAG_PROPERTY_ID?: string;
   }
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars,no-unused-vars */
-function gtag(
+export function gtag(
   cmd: GTagCommand,
   qualifier: string | Date,
   prms?:
@@ -100,7 +114,8 @@ function gtag(
     | IScreenViewParameters
     | IEventParameters
     | IConfigParameters
-    | IConditionalGTagsOptions
+    | PropIdConditionalGTagsOptions
+    | ConsentParameters
     | string
 ): void {
   /* eslint-enable @typescript-eslint/no-unused-vars,no-unused-vars */
@@ -108,26 +123,71 @@ function gtag(
     return;
   }
   if (typeof window !== 'undefined') {
+    // We check at each gtag call whether to disable gtag or not the collection, because consent may be given
+    // afterward
+    // @ts-expect-error no typing provided for GA disable property
+    window[`ga-disable-${propertyId}`] = Boolean(
+      isTrackingAllowedFn && !isTrackingAllowedFn()
+    );
+
     // eslint-disable-next-line prefer-rest-params
-    window.dataLayer!.push(arguments);
+    window.dataLayer.push(arguments);
   }
 }
 
-export interface IConditionalGTagsOptions {
-  checkFn?: () => boolean;
-  disableGlobalScopeCheck?: boolean;
+export interface ConditionalGTagsOptions {
+  /** If set to true, gtag will not automatically send a pageView on initial page load. */
   disableInitialPageView?: boolean;
-  locationRegEx?: RegExp;
-  propertyId?: string;
+
+  /** If set, initGTag will call this function to determine whether Google code should be enabled at all or not.
+   * If the function is set and returns false, the window[`ga-disable-${propertyId}`] property is set to true, before
+   * any further analytics code. */
+  isTrackingAllowedFn?: TrackingAllowedFn | null;
+
+  /** Callback function that can use the google gtag function for initial configuration purposes, like setting consent or other google configuration */
+  startupDefaultCmds?: (gtagFn: typeof gtag) => void;
 }
 
-export async function initGTag({
-  checkFn,
-  disableGlobalScopeCheck = false,
-  disableInitialPageView = false,
-  locationRegEx,
-  propertyId: propId
-}: IConditionalGTagsOptions = {}): Promise<void> {
+/**
+ * Options that can be passed to initGTag to personalize how it works
+ */
+export interface PropIdConditionalGTagsOptions extends ConditionalGTagsOptions {
+  /** If set, called first to determine whether to enable or not Google analytics. It is only used if propertyId is also set. */
+  checkFn?: () => boolean;
+  disableGlobalScopeCheck?: boolean;
+
+  locationRegEx?: RegExp;
+
+  /** Allows setting the Google propertyId, rather than look for the global scope variable GTAG_PROPERTY_ID */
+  propertyId: string;
+}
+
+/**
+ * Initialization of conditionalTags.
+ *
+ * To determine the Google propertyId we have two main options:
+ *
+ * 1. use he propId initialization parameter
+ * 2. If propId is not set, look at the global scope variable GTAG_PROPERTY_ID
+ *
+ * If neither is set, no google code will be called.
+ *
+ * @param {ConditionalGTagsOptions | PropIdConditionalGTagsOptions} options
+ * @returns {Promise<void>}
+ */
+export async function initGTag(
+  options: ConditionalGTagsOptions | PropIdConditionalGTagsOptions = {}
+): Promise<void> {
+  const {
+    checkFn,
+    disableGlobalScopeCheck = false,
+    disableInitialPageView = false,
+    isTrackingAllowedFn: trackingAllowedFn = null,
+    locationRegEx,
+    propertyId: propId,
+    startupDefaultCmds
+  } = options as PropIdConditionalGTagsOptions;
+  isTrackingAllowedFn = trackingAllowedFn;
   try {
     if (typeof window === 'undefined') return;
     if (!propId) {
@@ -157,7 +217,17 @@ export async function initGTag({
       }
       if (!useGTags) return;
     }
-    window.dataLayer = window.dataLayer || [];
+    // @ts-expect-error no typing provided for GA disable property
+    window[`ga-disable-${propertyId}`] = Boolean(
+      isTrackingAllowedFn && !isTrackingAllowedFn()
+    );
+    if (startupDefaultCmds) {
+      try {
+        startupDefaultCmds(gtag);
+      } catch (err) {
+        // silently swallow
+      }
+    }
     const loadJs = (await import('load-js')).default;
     loadJs({
       url: `https://www.googletagmanager.com/gtag/js?id=${propertyId}`,
@@ -228,4 +298,8 @@ export function recordNewView(viewPath?: string): void {
   } catch (err) {
     // silently swallow
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.dataLayer = window.dataLayer || [];
 }
