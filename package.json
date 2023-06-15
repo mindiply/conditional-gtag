@@ -1,6 +1,6 @@
 {
   "name": "conditional-gtag",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Wrapper for Google tags that records views and events conditionally to initialization options, server safe",
   "main": "lib/index.js",
   "scripts": {
